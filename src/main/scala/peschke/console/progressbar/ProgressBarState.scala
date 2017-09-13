@@ -16,18 +16,34 @@ case class ProgressBarState(count: Long, total: Long, width: Int = 80, isTermina
    *
    * This is bounded, and will not go lower than the value of `count`.
    */
-  def incrementTotal(delta: Long): ProgressBarState = copy(total = (total + delta).max(count))
+  def incrementTotal(delta: Long): ProgressBarState = setTotal(total + delta)
 
   /**
    * Increments the current count.
    *
    * This is bounded, and will not go lower than 0 or higher than the value of `total`.
    */
-  def incrementCount(delta: Long): ProgressBarState = {
-    val newCount = (count + delta).max(0L).min(total)
-    copy(count = newCount)
-  }
+  def incrementCount(delta: Long): ProgressBarState = setCount(count + delta)
 
+  /**
+   * Sets the total.
+   *
+   * This is bounded, and will not go lower than the value of `count`.
+   */
+  def setTotal(newTotal: Long): ProgressBarState = copy(total = newTotal.max(count))
+
+  /**
+   * Set the current count.
+   *
+   * This is bounded, and will not go lower than 0 or higher than the value of `total`
+   */
+  def setCount(newCount: Long): ProgressBarState = copy(count = newCount.max(0L).min(total))
+
+  /**
+   * Flags the progress bar as completed.
+   *
+   * Further changes could happen, but shouldn't be displayed.
+   */
   def terminated: ProgressBarState = copy(isTerminated = true)
 
   /**

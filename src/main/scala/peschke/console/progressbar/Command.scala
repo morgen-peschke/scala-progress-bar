@@ -13,6 +13,8 @@ object Command extends {
   case object Refresh extends Command
   case class IncrementCount(delta: Long = 1L) extends Command
   case class IncrementTotal(delta: Long = 1L) extends Command
+  case class SetCount(count: Long) extends Command
+  case class SetTotal(count: Long) extends Command
 
   /**
    * Pull [[peschke.console.progressbar.Command]] from a [[java.util.concurrent.BlockingQueue]].
