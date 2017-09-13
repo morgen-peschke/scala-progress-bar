@@ -1,0 +1,33 @@
+
+name := "Simple Progress Bar"
+
+lazy val root =
+  (project in file("."))
+    .dependsOn(scalaCommons)
+    .settings(
+      version := "0.0.1",
+      scalaVersion := "2.12.3",
+      crossScalaVersions := Seq("2.11.8"),
+      scalacOptions ++= Seq(
+        "-encoding",
+        "UTF-8",
+        "-deprecation",
+        "-unchecked",
+        "-feature",
+        "-Ywarn-adapted-args",
+        "-Ywarn-inaccessible",
+        "-Ywarn-unused",
+        "-Ywarn-dead-code",
+        "-Ywarn-unused-import",
+        "-Ywarn-value-discard",
+        "-Xfatal-warnings"),
+      scapegoatVersion := "1.3.0",
+      scapegoatReports := Seq("html"),
+      coverageMinimum := 80,
+      coverageHighlighting := true,
+      coverageOutputXML := false,
+      libraryDependencies ++= Seq(
+        "org.scalactic" %% "scalactic" % "3.0.1" % "test",
+        "org.scalatest" %% "scalatest" % "3.0.2" % "test"))
+
+lazy val scalaCommons = RootProject(uri("git://github.com/morgen-peschke/scala-commons.git#v1.0.0"))
