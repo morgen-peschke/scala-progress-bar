@@ -26,8 +26,7 @@ progressBar.incrementCount()
 progressBar.incrementCount(9)
 progressBar.incrementCount(40)
 progressBar.incrementCount(50)
-progressBar.terminate()
-
+progressBar.complete()
 ```
 
 ## Note to OSX users

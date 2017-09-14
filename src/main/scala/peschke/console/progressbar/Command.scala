@@ -10,6 +10,7 @@ import peschke.collections.TakeUntil.syntax._
 sealed trait Command
 object Command extends {
   case object Terminate extends Command
+  case object Complete extends Command
   case object Refresh extends Command
   case class IncrementCount(delta: Long = 1L) extends Command
   case class IncrementTotal(delta: Long = 1L) extends Command
