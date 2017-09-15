@@ -33,6 +33,18 @@ class ProgressBarStateTest extends UnitSpec {
     }
   }
 
+  "ProgressBarState.terminated" should {
+    "finish the progress bar without changing the count" in {
+      ProgressBarState(2, 4).terminated mustBe ProgressBarState(2, 4, isFinished = true)
+    }
+  }
+
+  "ProgressBarState.completed" should {
+    "finish the progress bar with setting the count to total" in {
+      ProgressBarState(2, 4).completed mustBe ProgressBarState(4, 4, isFinished = true)
+    }
+  }
+
   "ProgressBarState.draw" should {
     def draw(expected: String): Matcher[ProgressBarState] = new Matcher[ProgressBarState] {
       private val underlyingMatcher = be(expected)
@@ -59,26 +71,33 @@ class ProgressBarStateTest extends UnitSpec {
     }
 
     "produce the expected bar when terminated with a partial count" in {
-      ProgressBarState(40, 80, isTerminated = true) must draw {
-        "\r40 / 80 [==============================================================] 100.00%"
+      ProgressBarState(40, 80, isFinished = true) must draw {
+        "\r40 / 80 [==============================|                               ]  50.00%"
       }
     }
 
     "produce the expected bar when terminated with a full count" in {
-      ProgressBarState(80, 80, isTerminated = true) must draw {
+      ProgressBarState(80, 80, isFinished = true) must draw {
         "\r80 / 80 [==============================================================] 100.00%"
       }
     }
 
     Seq(
+      ProgressBarState(0, 5, 20) -> "\r0 / 5 [    ]   0.00%",
       ProgressBarState(1, 5, 20) -> "\r1 / 5 [>   ]  20.00%",
       ProgressBarState(2, 5, 20) -> "\r2 / 5 [=>  ]  40.00%",
       ProgressBarState(3, 5, 20) -> "\r3 / 5 [==> ]  60.00%",
       ProgressBarState(4, 5, 20) -> "\r4 / 5 [===>]  80.00%",
-      ProgressBarState(5, 5, 20) -> "\r5 / 5 [====] 100.00%"
+      ProgressBarState(5, 5, 20) -> "\r5 / 5 [====] 100.00%",
+      ProgressBarState(0, 5, 20, isFinished = true) -> "\r0 / 5 [    ]   0.00%",
+      ProgressBarState(1, 5, 20, isFinished = true) -> "\r1 / 5 [|   ]  20.00%",
+      ProgressBarState(2, 5, 20, isFinished = true) -> "\r2 / 5 [=|  ]  40.00%",
+      ProgressBarState(3, 5, 20, isFinished = true) -> "\r3 / 5 [==| ]  60.00%",
+      ProgressBarState(4, 5, 20, isFinished = true) -> "\r4 / 5 [===|]  80.00%",
+      ProgressBarState(5, 5, 20, isFinished = true) -> "\r5 / 5 [====] 100.00%"
     ).foreach {
       case (state, bar) =>
-        s"produce the expected partial bar for $state" in {
+        s"produce the expected bar for $state" in {
           state must draw (bar)
         }
     }

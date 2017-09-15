@@ -3,7 +3,7 @@ package peschke.console.progressbar
 import java.io.PrintStream
 import java.util.concurrent.LinkedBlockingQueue
 
-import peschke.console.progressbar.Command.{IncrementCount, IncrementTotal, Refresh, Terminate}
+import peschke.console.progressbar.Command._
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -25,18 +25,19 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
     @tailrec
     def loop(state: ProgressBarState): ProgressBarState = {
       state.draw(output)
-      if (state.isTerminated) {
+      if (state.isFinished) {
         output.println()
         state
       }
       else {
         val nextState =
           Command.takeFrom(commandQueue).foldLeft(state) {
-            case (prevState, _) if prevState.isTerminated => prevState
-            case (prevState, Terminate) => prevState.terminated
-            case (prevState, Refresh) => prevState
-            case (prevState, IncrementCount(delta)) => prevState.incrementCount(delta)
-            case (prevState, IncrementTotal(delta)) => prevState.incrementTotal(delta)
+            case (prevState, _) if prevState.isFinished => prevState
+            case (prevState, Terminate)                 => prevState.terminated
+            case (prevState, Complete)                  => prevState.completed
+            case (prevState, Refresh)                   => prevState
+            case (prevState, IncrementCount(delta))     => prevState.incrementCount(delta)
+            case (prevState, IncrementTotal(delta))     => prevState.incrementTotal(delta)
           }
         loop(nextState)
       }
@@ -84,12 +85,23 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
   /**
    * Terminate the progress bar.
    *
-   * Sets the bar value to the total, prints a final bar update, and drops a newline so printing to the output stream
-   * can continue without issue.
+   * Prints a final bar update, and drops a newline so printing to the output stream can continue without issue.
    */
   def terminate(): Unit = {
     maybeThrowExceptionFromWorker()
     commandQueue.put(Terminate)
+    Thread.`yield`()
+  }
+
+  /**
+   * Complete the progress bar.
+   *
+   * Sets the bar value to the total, prints a final bar update, and drops a newline so printing to the output stream
+   * can continue without issue.
+   */
+  def complete(): Unit = {
+    maybeThrowExceptionFromWorker()
+    commandQueue.put(Complete)
     Thread.`yield`()
   }
 }
