@@ -62,15 +62,36 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
   }
 
   /**
+   * Set the progress of the bar
+   * @param count must be between 0 and the total value of the bar
+   */
+  def setCount(count: Long): Unit = {
+    maybeThrowExceptionFromWorker()
+    commandQueue.put(SetCount(count))
+  }
+
+  /**
    * Increment (or decrement) the total value of the bar
    *
-   * This won't modify the count, but will implicitly modify the percent completion.
+   * This won't modify the count, but will modify the percent completion.
    *
    * @param delta can be positive or negative
    */
   def incrementTotal(delta: Long = 1): Unit = {
     maybeThrowExceptionFromWorker()
     commandQueue.put(IncrementTotal(delta))
+  }
+
+  /**
+   * Set the total value of the bar
+   *
+   * This won't modify the count, but will modify the percent completion.
+   *
+   * @param total must be greater than or equal to the current count
+   */
+  def setTotal(total: Long): Unit = {
+    maybeThrowExceptionFromWorker()
+    commandQueue.put(SetTotal(total))
   }
 
   /**

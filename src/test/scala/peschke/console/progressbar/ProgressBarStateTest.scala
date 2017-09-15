@@ -33,6 +33,31 @@ class ProgressBarStateTest extends UnitSpec {
     }
   }
 
+  "ProgressBarState.setTotal" should {
+    "respect the lower bound of the current value of count" in {
+      val initial = ProgressBarState(4, 5)
+      initial.setTotal(6) mustBe ProgressBarState(4, 6)
+      initial.setTotal(5) mustBe ProgressBarState(4, 5)
+      initial.setTotal(4) mustBe ProgressBarState(4, 4)
+      initial.setTotal(3) mustBe ProgressBarState(4, 4)
+    }
+  }
+
+  "ProgressBarState.setCount" should {
+    "respect the lower bound of 0" in {
+      val initial = ProgressBarState(2, 5)
+      initial.setCount(1) mustBe ProgressBarState(1, 5)
+      initial.setCount(0) mustBe ProgressBarState(0, 5)
+      initial.setCount(-1) mustBe ProgressBarState(0, 5)
+    }
+
+    "respect the upper bound of the current value of total" in {
+      val initial = ProgressBarState(4, 5)
+      initial.setCount(5) mustBe ProgressBarState(5, 5)
+      initial.setCount(6) mustBe ProgressBarState(5, 5)
+    }
+  }
+
   "ProgressBarState.terminated" should {
     "finish the progress bar without changing the count" in {
       ProgressBarState(2, 4).terminated mustBe ProgressBarState(2, 4, isFinished = true)

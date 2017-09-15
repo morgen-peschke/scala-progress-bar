@@ -38,7 +38,7 @@ class ProgressBarTest extends UnitSpec with ScalaFutures {
           val progressBar = new ProgressBar(
             // isTerminated is set to true to prevent the background worker from
             // emptying the queue before it can be checked.
-            ProgressBarState(count = 0, total = 10, isTerminated = true),
+            ProgressBarState(count = 0, total = 10, isFinished = true),
             commandBufferSize = 2,
             output = ignoreOutput)
 
