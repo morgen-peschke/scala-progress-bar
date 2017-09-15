@@ -12,21 +12,16 @@ import scala.util.Failure
 /**
  * Create, display, control, and terminate a console progress bar.
  *
- * @param initialCount Initial counter value, must be less than or equal to [[totalCount]]
- * @param totalCount Maximum count value, must be greater than or equal to [[initialCount]]
- * @param width Display width of the bar, manually set to avoid depending on JLine
+ * @param initialState Initial state of the progress bar
  * @param commandBufferSize Maximum of changes to the bar (increments, etc) per display
  * @param output This is a [[java.io.PrintStream]] to match [[java.lang.System.out]]
  * @param ec Execution context where the worker thread will run
  */
-class ProgressBar(initialCount: Long = 0,
-                  totalCount: Long = 100,
-                  width: Int = 80,
-                  commandBufferSize: Int = 50,
-                  output: PrintStream = System.out)(implicit ec: ExecutionContext) {
+class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output: PrintStream)
+                 (implicit ec: ExecutionContext) {
 
-  private val commandQueue = new LinkedBlockingQueue[Command](commandBufferSize)
-  private val future = Future {
+  private [progressbar] val commandQueue = new LinkedBlockingQueue[Command](commandBufferSize)
+  private [progressbar] val future = Future {
     @tailrec
     def loop(state: ProgressBarState): ProgressBarState = {
       state.draw(output)
@@ -46,7 +41,7 @@ class ProgressBar(initialCount: Long = 0,
         loop(nextState)
       }
     }
-    loop(ProgressBarState(initialCount, totalCount, width))
+    loop(initialState)
   }
 
   private def maybeThrowExceptionFromWorker(): Unit = {
@@ -96,5 +91,29 @@ class ProgressBar(initialCount: Long = 0,
     maybeThrowExceptionFromWorker()
     commandQueue.put(Terminate)
     Thread.`yield`()
+  }
+}
+
+object ProgressBar {
+  /**
+   * Create a new [[ProgressBar]]
+   *
+   * @param initialCount Initial counter value, must be less than or equal to totalCount
+   * @param totalCount Maximum count value, must be greater than or equal to initialCount
+   * @param width Display width of the bar, manually set to avoid depending on JLine
+   * @param commandBufferSize Maximum of changes to the bar (increments, etc) per display
+   * @param output This is a [[java.io.PrintStream]] to match [[java.lang.System.out]]
+   * @param ec Execution context where the worker thread will run
+   */
+  def apply(initialCount: Long = 0L,
+            totalCount: Long = 100L,
+            width: Int = 80,
+            commandBufferSize: Int = 50,
+            output: PrintStream = System.out)
+           (implicit ec: ExecutionContext): ProgressBar = {
+    new ProgressBar(
+      ProgressBarState(count = initialCount, total = totalCount, width = width),
+      commandBufferSize,
+      output)
   }
 }
