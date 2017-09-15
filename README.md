@@ -25,9 +25,11 @@ val progressBar = new ProgressBar(initialCount = 0, totalCount = 100)
 progressBar.incrementCount()
 progressBar.incrementCount(9)
 progressBar.incrementCount(40)
-progressBar.incrementCount(50)
-progressBar.terminate()
+progressBar.incrementCount(5)
 
+progressBar.incrementCount(50)
+progressBar.setCount(95)
+progressBar.complete()
 ```
 
 ## Note to OSX users
