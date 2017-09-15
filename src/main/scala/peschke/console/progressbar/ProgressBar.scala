@@ -3,7 +3,7 @@ package peschke.console.progressbar
 import java.io.PrintStream
 import java.util.concurrent.LinkedBlockingQueue
 
-import peschke.console.progressbar.Command.{IncrementCount, IncrementTotal, Refresh, Terminate}
+import peschke.console.progressbar.Command._
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -12,41 +12,37 @@ import scala.util.Failure
 /**
  * Create, display, control, and terminate a console progress bar.
  *
- * @param initialCount Initial counter value, must be less than or equal to [[totalCount]]
- * @param totalCount Maximum count value, must be greater than or equal to [[initialCount]]
- * @param width Display width of the bar, manually set to avoid depending on JLine
+ * @param initialState Initial state of the progress bar
  * @param commandBufferSize Maximum of changes to the bar (increments, etc) per display
  * @param output This is a [[java.io.PrintStream]] to match [[java.lang.System.out]]
  * @param ec Execution context where the worker thread will run
  */
-class ProgressBar(initialCount: Long = 0,
-                  totalCount: Long = 100,
-                  width: Int = 80,
-                  commandBufferSize: Int = 50,
-                  output: PrintStream = System.out)(implicit ec: ExecutionContext) {
+class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output: PrintStream)
+                 (implicit ec: ExecutionContext) {
 
-  private val commandQueue = new LinkedBlockingQueue[Command](commandBufferSize)
-  private val future = Future {
+  private [progressbar] val commandQueue = new LinkedBlockingQueue[Command](commandBufferSize)
+  private [progressbar] val future = Future {
     @tailrec
     def loop(state: ProgressBarState): ProgressBarState = {
       state.draw(output)
-      if (state.isTerminated) {
+      if (state.isFinished) {
         output.println()
         state
       }
       else {
         val nextState =
           Command.takeFrom(commandQueue).foldLeft(state) {
-            case (prevState, _) if prevState.isTerminated => prevState
-            case (prevState, Terminate) => prevState.terminated
-            case (prevState, Refresh) => prevState
-            case (prevState, IncrementCount(delta)) => prevState.incrementCount(delta)
-            case (prevState, IncrementTotal(delta)) => prevState.incrementTotal(delta)
+            case (prevState, _) if prevState.isFinished => prevState
+            case (prevState, Terminate)                 => prevState.terminated
+            case (prevState, Complete)                  => prevState.completed
+            case (prevState, Refresh)                   => prevState
+            case (prevState, IncrementCount(delta))     => prevState.incrementCount(delta)
+            case (prevState, IncrementTotal(delta))     => prevState.incrementTotal(delta)
           }
         loop(nextState)
       }
     }
-    loop(ProgressBarState(initialCount, totalCount, width))
+    loop(initialState)
   }
 
   private def maybeThrowExceptionFromWorker(): Unit = {
@@ -66,15 +62,36 @@ class ProgressBar(initialCount: Long = 0,
   }
 
   /**
+   * Set the progress of the bar
+   * @param count must be between 0 and the total value of the bar
+   */
+  def setCount(count: Long): Unit = {
+    maybeThrowExceptionFromWorker()
+    commandQueue.put(SetCount(count))
+  }
+
+  /**
    * Increment (or decrement) the total value of the bar
    *
-   * This won't modify the count, but will implicitly modify the percent completion.
+   * This won't modify the count, but will modify the percent completion.
    *
    * @param delta can be positive or negative
    */
   def incrementTotal(delta: Long = 1): Unit = {
     maybeThrowExceptionFromWorker()
     commandQueue.put(IncrementTotal(delta))
+  }
+
+  /**
+   * Set the total value of the bar
+   *
+   * This won't modify the count, but will modify the percent completion.
+   *
+   * @param total must be greater than or equal to the current count
+   */
+  def setTotal(total: Long): Unit = {
+    maybeThrowExceptionFromWorker()
+    commandQueue.put(SetTotal(total))
   }
 
   /**
@@ -89,12 +106,47 @@ class ProgressBar(initialCount: Long = 0,
   /**
    * Terminate the progress bar.
    *
-   * Sets the bar value to the total, prints a final bar update, and drops a newline so printing to the output stream
-   * can continue without issue.
+   * Prints a final bar update, and drops a newline so printing to the output stream can continue without issue.
    */
   def terminate(): Unit = {
     maybeThrowExceptionFromWorker()
     commandQueue.put(Terminate)
     Thread.`yield`()
+  }
+
+  /**
+   * Complete the progress bar.
+   *
+   * Sets the bar value to the total, prints a final bar update, and drops a newline so printing to the output stream
+   * can continue without issue.
+   */
+  def complete(): Unit = {
+    maybeThrowExceptionFromWorker()
+    commandQueue.put(Complete)
+    Thread.`yield`()
+  }
+}
+
+object ProgressBar {
+  /**
+   * Create a new [[ProgressBar]]
+   *
+   * @param initialCount Initial counter value, must be less than or equal to totalCount
+   * @param totalCount Maximum count value, must be greater than or equal to initialCount
+   * @param width Display width of the bar, manually set to avoid depending on JLine
+   * @param commandBufferSize Maximum of changes to the bar (increments, etc) per display
+   * @param output This is a [[java.io.PrintStream]] to match [[java.lang.System.out]]
+   * @param ec Execution context where the worker thread will run
+   */
+  def apply(initialCount: Long = 0L,
+            totalCount: Long = 100L,
+            width: Int = 80,
+            commandBufferSize: Int = 50,
+            output: PrintStream = System.out)
+           (implicit ec: ExecutionContext): ProgressBar = {
+    new ProgressBar(
+      ProgressBarState(count = initialCount, total = totalCount, width = width),
+      commandBufferSize,
+      output)
   }
 }
