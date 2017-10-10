@@ -1,12 +1,14 @@
 package peschke.console.progressbar
 
 import java.io.PrintStream
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
 
+import peschke.{Complete => CompletedUpdate}
 import peschke.console.progressbar.Command._
 
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.collection.JavaConverters._
 import scala.util.Failure
 
 /**
@@ -20,13 +22,21 @@ import scala.util.Failure
 class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output: PrintStream)
                  (implicit ec: ExecutionContext) {
 
-  private [progressbar] val commandQueue = new LinkedBlockingQueue[Command](commandBufferSize)
+  private [progressbar] val commandQueue: LinkedBlockingQueue[Command] = new LinkedBlockingQueue[Command](commandBufferSize)
+  private [progressbar] val updateObservers = ConcurrentHashMap.newKeySet[Promise[CompletedUpdate]]()
   private [progressbar] val future = Future {
     @tailrec
     def loop(state: ProgressBarState): ProgressBarState = {
+      val willNotify = updateObservers.iterator.asScala.toList
+      updateObservers.removeAll(willNotify.asJava)
+
       state.draw(output)
+
       if (state.isFinished) {
         output.println()
+        willNotify.foreach(_.trySuccess(CompletedUpdate))
+        // We want to make sure that, if we're finished, we notify everyone.
+        updateObservers.iterator.asScala.foreach(_.trySuccess(CompletedUpdate))
         state
       }
       else {
@@ -39,6 +49,8 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
             case (prevState, IncrementCount(delta))     => prevState.incrementCount(delta)
             case (prevState, IncrementTotal(delta))     => prevState.incrementTotal(delta)
           }
+        // Any added during the update can be notified next time around.
+        willNotify.foreach(_.trySuccess(peschke.Complete))
         loop(nextState)
       }
     }
@@ -50,6 +62,13 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
       case Some(Failure(ex)) => throw ex
       case _ => ()
     }
+  }
+
+  private def queueCommandWithCompletion(command: Command): Future[CompletedUpdate] = {
+    val completionPromise = Promise[CompletedUpdate]()
+    updateObservers.add(completionPromise)
+    commandQueue.put(command)
+    completionPromise.future
   }
 
   /**
@@ -97,10 +116,9 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
   /**
    * Force a redraw
    */
-  def redraw(): Unit = {
+  def redraw(): Future[CompletedUpdate] = {
     maybeThrowExceptionFromWorker()
-    commandQueue.put(Refresh)
-    Thread.`yield`()
+    queueCommandWithCompletion(Refresh)
   }
 
   /**
@@ -108,10 +126,9 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
    *
    * Prints a final bar update, and drops a newline so printing to the output stream can continue without issue.
    */
-  def terminate(): Unit = {
+  def terminate(): Future[CompletedUpdate] = {
     maybeThrowExceptionFromWorker()
-    commandQueue.put(Terminate)
-    Thread.`yield`()
+    queueCommandWithCompletion(Terminate)
   }
 
   /**
@@ -120,10 +137,9 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
    * Sets the bar value to the total, prints a final bar update, and drops a newline so printing to the output stream
    * can continue without issue.
    */
-  def complete(): Unit = {
+  def complete(): Future[CompletedUpdate] = {
     maybeThrowExceptionFromWorker()
-    commandQueue.put(Complete)
-    Thread.`yield`()
+    queueCommandWithCompletion(Complete)
   }
 }
 
