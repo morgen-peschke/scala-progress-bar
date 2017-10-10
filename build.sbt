@@ -5,7 +5,7 @@ lazy val root =
   (project in file("."))
     .dependsOn(scalaCommons)
     .settings(
-      version := "1.2.0",
+      version := "1.3.0",
       scalaVersion := "2.12.3",
       crossScalaVersions := Seq("2.11.8"),
       scalacOptions ++= Seq(
