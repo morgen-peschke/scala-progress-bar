@@ -3,7 +3,7 @@ package peschke.console.progressbar
 import java.io.{ByteArrayOutputStream, PrintStream}
 
 import org.scalatest.concurrent.ScalaFutures
-import peschke.UnitSpec
+import peschke.{Complete, UnitSpec}
 import peschke.console.progressbar.Command.{IncrementCount, IncrementTotal, Refresh, Terminate}
 
 import scala.concurrent.ExecutionContext
@@ -11,7 +11,9 @@ import scala.concurrent.ExecutionContext
 class ProgressBarTest extends UnitSpec with ScalaFutures {
   private implicit val ec: ExecutionContext =  scala.concurrent.ExecutionContext.global
 
-  private val ignoreOutput: PrintStream = new PrintStream(new ByteArrayOutputStream())
+  private def createBuffer: ByteArrayOutputStream = new ByteArrayOutputStream()
+  private def writeTo(byteArrayOutputStream: ByteArrayOutputStream): PrintStream = new PrintStream(byteArrayOutputStream)
+  private val ignoreOutput: PrintStream = writeTo(createBuffer)
 
   Seq[(String, ProgressBar => Unit, Command)](
     ("incrementCount(3)", _.incrementCount(3), IncrementCount(3)),
@@ -48,5 +50,53 @@ class ProgressBarTest extends UnitSpec with ScalaFutures {
           progressBar.terminate()
         }
       }
+  }
+
+  "ProgressBar.redraw" should {
+    "return a future which completes after the next update" in {
+      val buffer = createBuffer
+      val progressBar = new ProgressBar(
+        ProgressBarState(count = 0, total = 5, width = 20),
+        commandBufferSize = 10,
+        output = writeTo(buffer))
+
+      progressBar.setCount(2)
+      val redrawFuture = progressBar.redraw()
+      redrawFuture.futureValue mustBe Complete
+
+      buffer.toString mustBe "\r2 / 5 [=>  ]  40.00%"
+    }
+  }
+
+  "ProgressBar.terminate" should {
+    "return a future which completes after the next update" in {
+      val buffer = createBuffer
+      val progressBar = new ProgressBar(
+        ProgressBarState(count = 0, total = 5, width = 20),
+        commandBufferSize = 10,
+        output = writeTo(buffer))
+
+      progressBar.setCount(2)
+      val redrawFuture = progressBar.terminate()
+      redrawFuture.futureValue mustBe Complete
+
+      buffer.toString mustBe "\r2 / 5 [=>  ]  40.00%\n"
+    }
+  }
+
+  "ProgressBar.complete" should {
+    "return a future which completes after the next update" in {
+      val buffer = createBuffer
+      val progressBar = new ProgressBar(
+        ProgressBarState(count = 0, total = 5, width = 20),
+        commandBufferSize = 10,
+        output = writeTo(buffer))
+
+      progressBar.setCount(2)
+      val redrawFuture = progressBar.complete()
+      redrawFuture.futureValue mustBe Complete
+
+      buffer.toString mustBe "\r5 / 5 [====] 100.00%\n"
+    }
   }
 }
