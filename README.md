@@ -12,7 +12,7 @@ lazy val root =
     .dependsOn(simpleProgressBar)
     ...
 
-lazy val simpleProgressBar = RootProject(uri("git://github.com/morgen-peschke/scala-progress-bar.git#v1.0.0"))
+lazy val simpleProgressBar = RootProject(uri("git://github.com/morgen-peschke/scala-progress-bar.git#v1.1.0"))
 ```
 
 ## Usage
