@@ -144,6 +144,7 @@ class ProgressBar(initialState: ProgressBarState, commandBufferSize: Int, output
 }
 
 object ProgressBar {
+
   /**
    * Create a new [[ProgressBar]]
    *
