@@ -6,7 +6,7 @@ resolvers += "jitpack" at "https://jitpack.io"
 lazy val root =
   (project in file("."))
     .settings(
-      version := "1.3.0",
+      version := "1.4.0",
       scalaVersion := "2.12.3",
       crossScalaVersions := Seq("2.11.8"),
       scalacOptions ++= Seq(
